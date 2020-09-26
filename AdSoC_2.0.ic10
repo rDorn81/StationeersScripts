@@ -1,0 +1,93 @@
+#=[v.1.1]=============================[by rDorn]=#
+#                                                #
+#        Advanced Solar Controller v.1.1         #
+#                                                #
+#==================[Tested for v.0.2.2549.11996]=#
+#                                                #
+#                   SP setup                     #
+#================================================#
+#        sunrise        |                        #
+# ___   ___   ___   ___ |                        #
+# \ /   \ /   \@/   \ / |Positon SP on top frame #
+# @#     #@    #     #  | @ - power connector    #
+# / \   / \   / \   /@\ |                        #
+#         sunset        |                        #
+#-----|-----|-----|-----|------------------------#
+#-180 |  0  |  90 | -90 | SPOrient values        #
+#================================================#
+#     Daylight sensor setup: face to sunrise     #
+#================================================#
+alias SolarSensor d0 #Deylight sensor
+alias AzimuthMem d1  #Memory for BatchWriter
+alias AltitudeMem d2 #Memory for BatchWriter
+define SPOrient -180    #from table SP setup
+define EAngle 60      #read from planet description
+#select TimeCorr and ParkingDelay experimentally
+#for maximum efficiency
+define TimeCorr 0.7
+define ParkingDelay -3
+define DegInOneRad 57.295779513#don't change it!!!
+alias PredDeg r15
+alias CurCos r14
+alias ECos r13
+alias Offset r12
+alias Azimuth r11
+alias Altitude r10
+alias Clock r9
+#initial setup
+brle EAngle 90 3
+sub r0 180 EAngle
+div r0 r0 DegInOneRad
+div r0 EAngle DegInOneRad
+cos ECos r0
+s SolarSensor Mode 0
+main:
+l r0 SolarSensor SolarAngle
+sub Offset r0 PredDeg
+move PredDeg r0
+brgtz Offset 2
+sub r0 360 r0
+mul r1 Offset TimeCorr
+add r0 r0 r1
+#watching sun
+div r1 r0 DegInOneRad
+sin Altitude r1
+mul Altitude Altitude ECos
+asin Altitude Altitude
+cos CurCos r1
+cos Azimuth Altitude
+div Azimuth CurCos Azimuth
+acos Azimuth Azimuth
+mul Altitude Altitude DegInOneRad
+mul Azimuth Azimuth DegInOneRad
+brgez EAngle 2
+sub Azimuth 0 Azimuth
+brgez Altitude 2
+sub Azimuth 0 Azimuth
+#check need parking
+brge Altitude ParkingDelay 4
+s AzimuthMem Setting SPOrient
+s AltitudeMem Setting 0
+j main
+#translate to SolarPanel.Horizontal
+select r0 EAngle Azimuth 0#EAngle=0?0:Azimuth
+add r0 r0 SPOrient
+s AzimuthMem Setting r0
+#translate to SolarPanel.Vertical
+sltz r0 Altitude
+select r1 r0 0 Altitude
+brnez EAngle 4
+brgez CurCos 3
+select r1 r0 180 Altitude
+sub r1 180 r1
+max r1 r1 15
+sub r1 r1 15
+div r1 r1 1.5
+min r1 r1 100
+s AltitudeMem Setting r1
+#TO DO:
+#Clock to db.Setting
+#Smart time correction
+#Smart angle correction
+yield
+j main
